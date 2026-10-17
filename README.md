@@ -3,6 +3,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Data Format: Apache Parquet](https://img.shields.io/badge/Format-Apache%20Parquet-orange.svg)](https://parquet.apache.org/)
 [![Database: CrowdIntel](https://img.shields.io/badge/Catalog-crowdintel.xyz%2Fdata-green.svg)](https://crowdintel.xyz/data)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Datasets-yellow)](https://huggingface.co/datasets/Crowdintel/polymarket-historical-data)
 [![Ecosystem: Agent Kit](https://img.shields.io/badge/Tools-polymarket--agent--kit-blueviolet.svg)](https://github.com/crowdintel-xyz/polymarket-agent-kit)
 
 > ⚠️ **You are viewing the Free Research Benchmark (10k Fills & 5k Order Book Snapshots).**  
