@@ -1,27 +1,33 @@
-# Polymarket Historical Backtesting Dataset (Free Sample Pack)
+# Polymarket Historical Market Data (Free Sample Pack)
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Data Format: Apache Parquet](https://img.shields.io/badge/Format-Apache%20Parquet-orange.svg)](https://parquet.apache.org/)
 [![Database: CrowdIntel](https://img.shields.io/badge/Catalog-crowdintel.xyz%2Fdata-green.svg)](https://crowdintel.xyz/data)
+[![Ecosystem: Agent Kit](https://img.shields.io/badge/Tools-polymarket--agent--kit-blueviolet.svg)](https://github.com/crowdintel-xyz/polymarket-agent-kit)
 
-This repository contains an end-to-end verified historical sample of Polymarket tick-level trade executions. Designed for quantitative researchers, algorithmic market makers, and statistical arbitrage bot developers.
+This repository contains verified, tick-level Polymarket datasets across two primary modalities: **Trade Execution Fills** (for flow analytics, whale tracking, and PnL) and **Continuous L2 Order Book Depth** (for market makers, latency arbitrageurs, and execution slippage modeling).
 
 ---
 
-## 1. What is Inside This Free Sample Pack
+## 1. Two Production Data Streams
 
-Unlike random synthetic rows, this repository provides two distinct institutional-grade datasets:
+Unlike disconnected synthetic rows, this repository provides two real-world market datasets:
 
-### A. Closed-Event Trade Tape (`crowdintel_trump_harris_sample.parquet`)
-* **Scope:** Every executed trade fill and resolution from market creation to final settlement for the **2024 US Presidential Election (Trump vs. Harris)**.
-* **Granularity:** Tick-by-tick millisecond Polygon PoS block header timestamps.
-* **Attribution:** On-chain maker and taker proxy wallet addresses, transaction hashes, execution prices, and share quantities.
-* **Integrity:** Zero dropped transactions; 100% verified against Polygon on-chain logs.
+### A. Closed-Event Trade Tape (`data/sample_fills.parquet` & `.csv`)
+* **Scope:** 10,000 tick-by-tick fills across the **2024 US Presidential Election (Trump vs. Harris)** from market creation to final resolution settlement.
+* **Fields:** Transaction hashes, millisecond block timestamps, execution prices, quantities transacted, maker/taker proxy wallet addresses, and final contract payoffs.
+* **Use Cases:**
+  * **Whale Tracking & Forensics:** Trace which wallets accumulated early contrarian positions.
+  * **Volume Profiling:** Calculate volume-weighted average price (VWAP) and liquidity shocks.
+  * **Strategy PnL & Backtesting:** Replay settled event outcomes against real execution prices.
 
-### B. High-Frequency Order Book Snapshots (`crowdintel_btc_5m_orderbook_sample.parquet`)
-* **Scope:** Continuous L2/L3 order book depth snapshots for **BTC 5-minute / 15-minute** prediction markets.
-* **Metrics:** Best bid, best ask, mid-market price, tick spread, USD bid/ask depth, and full raw level-2 bid/ask arrays (`bids_json`, `asks_json`).
-* **Use Case:** Market-making simulation, latency arbitrage backtesting, and limit-order fill probability / slippage modeling.
+### B. High-Frequency Order Book Snapshots (`data/sample_orderbooks.parquet` & `.csv`)
+* **Scope:** 5,000 continuous L2 order book depth snapshots for **BTC 5-Minute / 15-Minute** prediction markets.
+* **Fields:** Best bid, best ask, mid-market price, tick spread, cumulative bid/ask USD depth, and serialized level-2 price ladders (`bids_json`, `asks_json`).
+* **Use Cases:**
+  * **Market Making:** Simulate queue position, spread capture, and adverse selection.
+  * **Slippage Modeling:** Evaluate expected fill price for larger taker order sizes.
+  * **Latency Arbitrage:** Backtest reaction speeds between spot CEX moves and Polymarket order book revisions.
 
 ---
 
@@ -41,7 +47,7 @@ df = con.execute("""
         COUNT(*) AS fills,
         ROUND(SUM(bet_value), 2) AS volume_usd,
         ROUND(SUM(price * size) / SUM(size), 4) AS vwap
-    FROM 'crowdintel_trump_harris_sample.parquet'
+    FROM 'data/sample_fills.parquet'
     GROUP BY 1, 2
     ORDER BY window_1h DESC
 """).df()
@@ -49,21 +55,21 @@ df = con.execute("""
 print(df)
 ```
 
-### Query Order Book Depth & Spread with DuckDB
+### Query Order Book Depth & Spreads with DuckDB
 ```python
 import duckdb
 
 con = duckdb.connect()
 books_df = con.execute("""
     SELECT 
-        ts,
+        to_timestamp(ts / 1000) AS time_utc,
         best_bid,
         best_ask,
-        spread,
-        bid_depth_usd,
-        ask_depth_usd
-    FROM 'crowdintel_btc_5m_orderbook_sample.parquet'
-    WHERE spread > 0.01
+        ROUND(spread, 4) AS spread,
+        ROUND(bid_depth_usd, 2) AS bid_depth,
+        ROUND(ask_depth_usd, 2) AS ask_depth
+    FROM 'data/sample_orderbooks.parquet'
+    WHERE spread > 0.005
     ORDER BY ts DESC
     LIMIT 10
 """).df()
@@ -78,7 +84,7 @@ print(books_df)
 ### Fills Tape Schema (`polywhales.trades`)
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `timestamp` | `INT64` | Millisecond Unix timestamp from Polygon block header |
+| `timestamp` | `INT64` | Millisecond Unix epoch from Polygon PoS block header |
 | `tx_hash` | `STRING` | 0x-prefixed unique Polygon transaction hash |
 | `condition_id` | `STRING` | CTF condition ID for market settlement |
 | `market_slug` | `STRING` | Human-readable market slug identifier |
@@ -94,17 +100,18 @@ print(books_df)
 ### L2 Order Book Snapshot Schema (`bot_book_snapshots`)
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `ts` | `DATETIME` | Snapshot timestamp (UTC) |
+| `ts` | `INT64` | Millisecond Unix timestamp (UTC) |
 | `token_id` | `STRING` | Polymarket CLOB token identifier |
 | `condition_id` | `STRING` | CTF market condition identifier |
-| `best_bid` | `FLOAT64` | Highest available bid price |
-| `best_ask` | `FLOAT64` | Lowest available ask price |
-| `mid` | `FLOAT64` | Mid-market price `(best_bid + best_ask) / 2` |
-| `spread` | `FLOAT64` | Absolute bid-ask spread `(best_ask - best_bid)` |
+| `market_slug` | `STRING` | Market identifier |
+| `best_bid` | `FLOAT32` | Highest available bid price |
+| `best_ask` | `FLOAT32` | Lowest available ask price |
+| `mid` | `FLOAT32` | Mid-market price `(best_bid + best_ask) / 2` |
+| `spread` | `FLOAT32` | Absolute bid-ask spread `(best_ask - best_bid)` |
+| `bid_depth_usd`| `FLOAT32` | Cumulative USD liquidity on the bid side |
+| `ask_depth_usd`| `FLOAT32` | Cumulative USD liquidity on the ask side |
 | `bids_json` | `STRING` | Serialized JSON array of price-level bids `[[price, size], ...]` |
 | `asks_json` | `STRING` | Serialized JSON array of price-level asks `[[price, size], ...]` |
-| `bid_depth_usd`| `FLOAT64` | Cumulative USD liquidity on the bid side |
-| `ask_depth_usd`| `FLOAT64` | Cumulative USD liquidity on the ask side |
 
 ---
 
@@ -115,3 +122,9 @@ print(books_df)
   * **All-Access Terminal Pass ($99/mo):** Master database access + automated weekly delta sync via REST API.
   * **Perpetual Master Buyout ($299):** Complete 42 GB Snappy Parquet archive.
   * **Category Packs ($49–$79):** Politics, Crypto/Macro, Sports, and Whale Graph.
+
+---
+
+## License
+
+Apache 2.0. Curated by the CrowdIntel Quantitative Engineering Team.
