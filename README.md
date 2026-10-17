@@ -41,23 +41,47 @@ CrowdIntel indexes every Polygon PoS block and records continuous WebSocket orde
 
 ---
 
-## 3. What is Inside the Benchmark Datasets
+## 3. Data Specification & Schemas
 
-### A. Closed-Event Trade Tape (`data/sample_fills.parquet`)
-* **10,000 fills** from market inception to final resolution settlement for the **2024 US Presidential Election (Trump vs. Harris)**.
-* **Columns:** `timestamp`, `tx_hash`, `condition_id`, `market_slug`, `category`, `side`, `price`, `size`, `bet_value`, `maker_address`, `taker_address`, `outcome`.
-* **Primary Use Cases:**
-  * **Whale Tracking:** Trace early accumulation patterns and smart-money divergence.
-  * **Volume Profiling:** Compute volume-weighted average price (VWAP) across outcome tokens.
-  * **Settlement Backtesting:** Verify trading strategy returns against actual contract payoffs.
+### Dataset A: Trade Execution Tape (`data/sample_fills.parquet` & `.csv`)
+* **Scope:** 10,000 executed trade fills for the **2024 US Presidential Election (Trump vs. Harris)** from market inception through final resolution settlement.
+* **Format:** Apache Parquet v1 with Snappy block compression (plus CSV text fallback).
+* **Parity:** 100% schema parity with ClickHouse table `polywhales.trades`.
 
-### B. High-Frequency Order Book Snapshots (`data/sample_orderbooks.parquet`)
-* **5,000 continuous snapshots** for **BTC 5-Minute prediction markets**.
-* **Columns:** `ts`, `token_id`, `condition_id`, `market_slug`, `best_bid`, `best_ask`, `mid`, `spread`, `bid_depth_usd`, `ask_depth_usd`, `bids_json`, `asks_json`.
-* **Primary Use Cases:**
-  * **Market Making:** Simulate limit-order queue positioning and spread capture.
-  * **Slippage Modeling:** Quantify expected market impact on large orders during volatility shocks.
-  * **Latency Arbitrage:** Backtest reaction times to spot CEX price movements.
+| Column | Type | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `timestamp` | `INT64` | `1730847600000` | Millisecond Unix epoch from Polygon block header |
+| `tx_hash` | `STRING` | `0x5b3a...7f12` | 66-character unique Polygon transaction hash |
+| `condition_id` | `STRING` | `0x192a...c01a` | 32-byte hex CTF condition identifier |
+| `market_slug` | `STRING` | `will-donald-trump-win-2024`| Human-readable Polymarket market slug |
+| `category` | `STRING` | `politics` | Market taxonomy category |
+| `side` | `STRING` | `BUY` | Execution side (`BUY` or `SELL`) |
+| `price` | `FLOAT32` | `0.6200` | Normalized execution price in USDC ($0.0001 to $1.0000) |
+| `size` | `FLOAT32` | `5000.0` | Number of outcome share tokens transacted |
+| `bet_value` | `FLOAT32` | `3100.00` | Notional USD volume transacted (`price * size`) |
+| `maker_address`| `STRING` | `0x82f4...d57a` | 42-character hex on-chain maker proxy wallet |
+| `taker_address`| `STRING` | `0xe780...e245` | 42-character hex on-chain taker proxy wallet |
+| `outcome` | `STRING` | `Yes` | Resolved contract outcome token leg |
+
+### Dataset B: High-Frequency Order Book Depth (`data/sample_orderbooks.parquet` & `.csv`)
+* **Scope:** 5,000 continuous 1-second interval L2 order book depth snapshots for **BTC 5-Minute prediction markets**.
+* **Format:** Apache Parquet v1 with Snappy block compression (plus CSV text fallback).
+* **Parity:** 100% schema parity with ClickHouse table `bot_book_snapshots`.
+
+| Column | Type | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `ts` | `INT64` | `1730000000000` | Millisecond Unix epoch timestamp (UTC) |
+| `token_id` | `STRING` | `21742633...` | Polymarket CLOB ERC-1155 token leg identifier |
+| `condition_id` | `STRING` | `0x82f4...f7b8` | CTF market condition identifier |
+| `market_slug` | `STRING` | `btc-up-down-5m-series` | High-frequency market series slug |
+| `best_bid` | `FLOAT32` | `0.5120` | Highest available bid price in USDC |
+| `best_ask` | `FLOAT32` | `0.5180` | Lowest available ask price in USDC |
+| `mid` | `FLOAT32` | `0.5150` | Mid-market price `(best_bid + best_ask) / 2` |
+| `spread` | `FLOAT32` | `0.0060` | Absolute bid-ask spread `(best_ask - best_bid)` |
+| `bid_depth_usd`| `FLOAT32` | `18240.50` | Cumulative USD liquidity available on the bid side |
+| `ask_depth_usd`| `FLOAT32` | `21980.20` | Cumulative USD liquidity available on the ask side |
+| `bids_json` | `STRING` | `[[0.51, 8500], ...]` | Serialized level-2 price ladder: `[[price, size], ...]` |
+| `asks_json` | `STRING` | `[[0.52, 9200], ...]` | Serialized level-2 price ladder: `[[price, size], ...]` |
 
 ---
 
@@ -126,11 +150,11 @@ For teams building production bots or conducting institutional research:
 
 ---
 
-## 6. Bespoke Market Cuts & Lead Inquiries
+## 6. Bespoke Market Cuts & Inquiries
 
 Need a custom slice (e.g. French Presidential Election, Fed Interest Rate cuts, or specific DeFi markets)? Don't waste weeks scraping.
 
-* **Email:** `data@crowdintel.xyz` (Custom Parquet extracts delivered within 2 hours)
+* **Email:** `hi@crowdintel.xyz` (Custom Parquet extracts delivered within 2 hours)
 * **Telegram:** [@CrowdIntel](https://t.me/crowdintel)
 * **Official AI Agent Kit:** [`crowdintel-xyz/polymarket-agent-kit`](https://github.com/crowdintel-xyz/polymarket-agent-kit) (Model Context Protocol server for Claude & Cursor)
 
