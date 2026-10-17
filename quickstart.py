@@ -9,6 +9,22 @@ import sys
 SAMPLE_TRADES = os.path.join(os.path.dirname(__file__), "data", "sample_fills.parquet")
 SAMPLE_BOOKS = os.path.join(os.path.dirname(__file__), "data", "sample_orderbooks.parquet")
 
+def print_banner():
+    banner = """
+╔════════════════════════════════════════════════════════════════════════════╗
+║                CROWDINTEL COMMERCIAL DATA STORE & ARCHIVES                 ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║  • Complete Archive: 1.88B Trade Fills across 2.13M Markets (2020-Present) ║
+║  • Order Book Depth: Continuous L2 snapshots with bids, asks, & spreads    ║
+║  • Whale Intelligence: 3.06M Scored Wallets with PnL & Cluster Graphs      ║
+║  • Format: Snappy Parquet (DuckDB, Polars, & Arrow zero-copy compatible)   ║
+║                                                                            ║
+║  🛒 Explore Catalog & Category Packs: https://crowdintel.xyz/data          ║
+║  🤖 Connect Claude / Cursor via MCP:  github.com/crowdintel-xyz            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+"""
+    print(banner)
+
 def run_quickstart():
     print("=== CrowdIntel Polymarket Market Data Quickstart ===")
     
@@ -78,11 +94,7 @@ def run_quickstart():
         print("\n[Sample Order Book Preview]:")
         print("time_utc: 2026-10-17 12:00:00 | best_bid: 0.5120 | best_ask: 0.5180 | spread: 0.0060 | depth: $33,170")
 
-    print("\n--------------------------------------------------------------")
-    print("Full 1.88B Tick Archive & Live Weekly Delta Streams:")
-    print("Catalog: https://crowdintel.xyz/data")
-    print("Agent Kit & MCP: https://github.com/crowdintel-xyz/polymarket-agent-kit")
-    print("--------------------------------------------------------------")
+    print_banner()
 
 if __name__ == "__main__":
     run_quickstart()
