@@ -1,165 +1,118 @@
-# Polymarket Historical Market Data (Free Research Benchmark)
+# Polymarket Historical Data — Free Closed-Event Tape
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Data Format: Apache Parquet](https://img.shields.io/badge/Format-Apache%20Parquet-orange.svg)](https://parquet.apache.org/)
-[![Database: CrowdIntel](https://img.shields.io/badge/Catalog-crowdintel.xyz%2Fdata-green.svg)](https://crowdintel.xyz/data)
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Datasets-yellow)](https://huggingface.co/datasets/Crowdintel/polymarket-historical-data)
-[![Ecosystem: Agent Kit](https://img.shields.io/badge/Tools-polymarket--agent--kit-blueviolet.svg)](https://github.com/crowdintel-xyz/polymarket-agent-kit)
+The complete on-chain fill tape for the two Polymarket markets that resolved the 2024 US
+Presidential Election. Every executed fill from market creation to settlement, as Parquet, with the
+transaction hash, outcome token, wallet, price, and size.
 
-> ⚠️ **You are viewing the Free Research Benchmark (10k Fills & 5k Order Book Snapshots).**  
-> Looking for the complete 1.88 Billion fill tape, historical orderbook archives, or automated weekly delta sync?  
-> 👉 **[Explore the Full Commercial Data Store at crowdintel.xyz/data →](https://crowdintel.xyz/data)**
+Built by [CrowdIntel](https://crowdintel.xyz/data) from Polymarket's CTF `OrderFilled` events on
+Polygon. Also on Hugging Face:
+[Crowdintel/polymarket-historical-data](https://huggingface.co/datasets/Crowdintel/polymarket-historical-data).
 
----
+## What is in this repository
 
-## 1. Why This Dataset Exists
+| File | Rows | Where |
+| :--- | ---: | :--- |
+| `fills_2024_us_presidential.parquet` | 7,655,166 | [Hugging Face](https://huggingface.co/datasets/Crowdintel/polymarket-historical-data) + [Releases](../../releases) — not committed (size) |
+| `data/markets.parquet` | 2 | This repository |
+| `quickstart.py` | — | This repository (downloads the fills parquet on first run) |
 
-In February 2026, Polymarket deprecated its official historical order book API (`/orderbook-history`). Quant researchers, bot builders, and market makers were left without historical tick-level depth or trade execution tapes.
+Markets included:
 
-CrowdIntel indexes every Polygon PoS block and records continuous WebSocket order book feeds into ClickHouse. This repository provides **two verified benchmark samples** in zero-copy Apache Parquet:
+| Market | Condition ID | Fills | Resolved |
+| :--- | :--- | ---: | :--- |
+| Will Donald Trump win the 2024 US Presidential Election? | `0xdd22472e552920b8438158ea7238bfadfa4f736aa4cee91a6b86c39ead110917` | 4,963,530 | **Yes** |
+| Will Kamala Harris win the 2024 US Presidential Election? | `0xc6485bb7ea46d7bb89beb9c91e7572ecfc72a6273789496f78bc5e989e4d1638` | 2,691,636 | **No** |
 
-1. **Trade Execution Fills (`data/sample_fills.parquet` & `.csv`)**: For whale forensics, volume profiling, and flow analytics.
-2. **Continuous L2 Order Book Depth (`data/sample_orderbooks.parquet` & `.csv`)**: For market-making simulation, spread dynamics, and execution slippage modeling.
+Coverage: 2024-01-05 02:36:24 UTC → 2024-11-06 15:20:35 UTC.
 
----
+## Schema
 
-## 2. Free Benchmark vs. Commercial Data Store
+### `fills_2024_us_presidential.parquet`
 
-| Capability | Free Benchmark (This Repo) | Commercial Data Store (`crowdintel.xyz/data`) |
+| Column | Type | Description |
 | :--- | :--- | :--- |
-| **Historical Range** | 1 Closed Market (2024 Presidential Election) | **Complete 2020–Present History (2,130,000+ Markets)** |
-| **Total Trade Fills** | 10,000 executed fills | **1,880,000,000+ Fills (Complete Tick-Level Tape)** |
-| **Order Book Depth** | 5,000 BTC 5-min snapshots | **Continuous L2 snapshots across all active liquid markets** |
-| **Whale Intelligence** | None | **3.06M Scored Wallets (PnL, FDR q-values, Sybil cluster graphs)** |
-| **Data Delivery** | Direct Git / Parquet download | **Signed Cloudflare R2 URLs + High-Speed Direct S3** |
-| **Data Updates** | None (Static benchmark) | **Automated Weekly Delta Sync via REST API** |
-| **AI Agent Tooling** | Manual Python scripts | **Official MCP Server for Claude Desktop & Cursor** |
-| **Commercial License** | Personal / Academic Research | **Commercial Redistribution & Algorithmic Trading Allowed** |
-| **Pricing** | **$0 (Free)** | **$79 Packs · $99/mo All-Access · $299 Master Buyout** |
+| `timestamp_ms` | int64 | Fill time, Unix epoch milliseconds (UTC) |
+| `tx_hash` | string | Polygon transaction hash, with the fill index as `-<n>` suffix |
+| `condition_id` | string | CTF condition id (market key) |
+| `market_slug` | string | Polymarket market slug |
+| `token_id` | string | ERC-1155 outcome token id (uint256, decimal string) |
+| `side` | string | `BUY` or `SELL` |
+| `outcome` | string | Outcome leg the token represents (`Yes` / `No`) |
+| `price` | double | Execution price, 0–1 |
+| `size` | double | Shares traded |
+| `bet_value` | double | USD notional (`price × size`) |
+| `proxy_wallet` | string | Lowercase 0x-address whose position changed |
 
-👉 **[Browse Available Category Slices on the Commercial Data Store →](https://crowdintel.xyz/data)**
+### `data/markets.parquet`
 
----
+`condition_id`, `slug`, `title`, `category`, `end_date_ms`, `resolved_outcome`, `resolved_at_ms`,
+`final_price`, `fill_count`, `volume_usd`, `first_fill_ms`, `last_fill_ms`.
 
-## 3. Data Specification & Schemas
+## Quickstart
 
-### Dataset A: Trade Execution Tape (`data/sample_fills.parquet` & `.csv`)
-* **Scope:** 10,000 executed trade fills for the **2024 US Presidential Election (Trump vs. Harris)** from market inception through final resolution settlement.
-* **Format:** Apache Parquet v1 with Snappy block compression (plus CSV text fallback).
-* **Parity:** 100% schema parity with ClickHouse table `polywhales.trades`.
+```bash
+pip install duckdb huggingface_hub
+python3 quickstart.py
+```
 
-| Column | Type | Example | Description |
-| :--- | :--- | :--- | :--- |
-| `timestamp` | `INT64` | `1730847600000` | Millisecond Unix epoch from Polygon block header |
-| `tx_hash` | `STRING` | `0x5b3a...7f12` | 66-character unique Polygon transaction hash |
-| `condition_id` | `STRING` | `0x192a...c01a` | 32-byte hex CTF condition identifier |
-| `market_slug` | `STRING` | `will-donald-trump-win-2024`| Human-readable Polymarket market slug |
-| `category` | `STRING` | `politics` | Market taxonomy category |
-| `side` | `STRING` | `BUY` | Execution side (`BUY` or `SELL`) |
-| `price` | `FLOAT32` | `0.6200` | Normalized execution price in USDC ($0.0001 to $1.0000) |
-| `size` | `FLOAT32` | `5000.0` | Number of outcome share tokens transacted |
-| `bet_value` | `FLOAT32` | `3100.00` | Notional USD volume transacted (`price * size`) |
-| `maker_address`| `STRING` | `0x82f4...d57a` | 42-character hex on-chain maker proxy wallet |
-| `taker_address`| `STRING` | `0xe780...e245` | 42-character hex on-chain taker proxy wallet |
-| `outcome` | `STRING` | `Yes` | Resolved contract outcome token leg |
+The fills file (~300 MB) is not committed; `quickstart.py` downloads it from Hugging Face
+once and caches it. `data/markets.parquet` is already in the repo.
 
-### Dataset B: High-Frequency Order Book Depth (`data/sample_orderbooks.parquet` & `.csv`)
-* **Scope:** 5,000 continuous 1-second interval L2 order book depth snapshots for **BTC 5-Minute prediction markets**.
-* **Format:** Apache Parquet v1 with Snappy block compression (plus CSV text fallback).
-* **Parity:** 100% schema parity with ClickHouse table `bot_book_snapshots`.
+Or query the file directly:
 
-| Column | Type | Example | Description |
-| :--- | :--- | :--- | :--- |
-| `ts` | `INT64` | `1730000000000` | Millisecond Unix epoch timestamp (UTC) |
-| `token_id` | `STRING` | `21742633...` | Polymarket CLOB ERC-1155 token leg identifier |
-| `condition_id` | `STRING` | `0x82f4...f7b8` | CTF market condition identifier |
-| `market_slug` | `STRING` | `btc-up-down-5m-series` | High-frequency market series slug |
-| `best_bid` | `FLOAT32` | `0.5120` | Highest available bid price in USDC |
-| `best_ask` | `FLOAT32` | `0.5180` | Lowest available ask price in USDC |
-| `mid` | `FLOAT32` | `0.5150` | Mid-market price `(best_bid + best_ask) / 2` |
-| `spread` | `FLOAT32` | `0.0060` | Absolute bid-ask spread `(best_ask - best_bid)` |
-| `bid_depth_usd`| `FLOAT32` | `18240.50` | Cumulative USD liquidity available on the bid side |
-| `ask_depth_usd`| `FLOAT32` | `21980.20` | Cumulative USD liquidity available on the ask side |
-| `bids_json` | `STRING` | `[[0.51, 8500], ...]` | Serialized level-2 price ladder: `[[price, size], ...]` |
-| `asks_json` | `STRING` | `[[0.52, 9200], ...]` | Serialized level-2 price ladder: `[[price, size], ...]` |
-
----
-
-## 4. Quickstart (< 5 Lines of Code)
-
-Query billions of rows in memory without configuring a database:
-
-### Query Trade Tape (VWAP & Outcome Volume) with DuckDB
 ```python
 import duckdb
 
 con = duckdb.connect()
-df = con.execute("""
-    SELECT 
-        time_bucket(INTERVAL '1 hour', to_timestamp(timestamp / 1000)) AS window_1h,
-        outcome,
-        COUNT(*) AS fills,
-        ROUND(SUM(bet_value), 2) AS volume_usd,
-        ROUND(SUM(price * size) / SUM(size), 4) AS vwap
-    FROM 'data/sample_fills.parquet'
-    GROUP BY 1, 2
-    ORDER BY window_1h DESC
-""").df()
+FILLS = "hf://datasets/Crowdintel/polymarket-historical-data/fills_2024_us_presidential.parquet"
 
-print(df)
+con.sql(f"""
+    SELECT market_slug,
+           count(*)                 AS fills,
+           count(DISTINCT proxy_wallet) AS wallets,
+           round(sum(bet_value), 0) AS volume_usd
+    FROM read_parquet('{FILLS}')
+    GROUP BY 1 ORDER BY volume_usd DESC
+""").show()
 ```
 
-### Query Order Book Spreads & Depth with DuckDB
+First and last price per outcome before resolution:
+
 ```python
-import duckdb
-
-con = duckdb.connect()
-books_df = con.execute("""
-    SELECT 
-        to_timestamp(ts / 1000) AS time_utc,
-        best_bid,
-        best_ask,
-        ROUND(spread, 4) AS spread,
-        ROUND(bid_depth_usd, 2) AS bid_depth,
-        ROUND(ask_depth_usd, 2) AS ask_depth
-    FROM 'data/sample_orderbooks.parquet'
-    WHERE spread > 0.005
-    ORDER BY ts DESC
-    LIMIT 10
-""").df()
-
-print(books_df)
+con.sql(f"""
+    SELECT market_slug, outcome, arg_max(price, timestamp_ms) AS last_price
+    FROM read_parquet('{FILLS}')
+    GROUP BY 1, 2 ORDER BY 1, 2
+""").show()
 ```
 
----
+## Provenance
 
-## 5. Commercial Offerings Ladder
+- Source: Polymarket CTF `OrderFilled` events on Polygon, indexed by CrowdIntel and joined to Gamma
+  market metadata and on-chain resolution.
+- `tx_hash` is unique across the file (one row per fill); the file is sorted by `timestamp_ms`.
+- Row counts, wallet counts, volume, and the coverage window are computed from the published file.
+- Resolution rows come from on-chain condition resolution, not from an off-chain leaderboard.
 
-For teams building production bots or conducting institutional research:
+## Known limitations
 
-| Offering | Coverage | Format | Price | Delivery |
-| :--- | :--- | :--- | :--- | :--- |
-| **US Politics & Policy** | 2020–2026 Presidential, Senate & Policy markets | Parquet (~7.5 GB) | **$79** one-time | Signed R2 link |
-| **Crypto & High-Freq** | 5m/15m BTC/ETH markets + TWAP settlement series | Parquet (~11 GB) | **$79** one-time | Signed R2 link |
-| **Sports & Culture** | Full resolved soccer, NBA, NFL, and esports markets | Parquet (~14 GB) | **$79** one-time | Signed R2 link |
-| **Whale & Bot Intelligence** | 3.06M scored wallets: PnL, FDR q-values, sybils | Parquet (~3 GB) | **$149** one-time | Signed R2 link |
-| **⭐ All-Access Terminal** | **1.88B master archive + weekly delta sync + API** | API / Parquet | **$99 / month** | REST / Curl token |
-| **Master Archive Buyout** | Complete 1.88B historical database (2020–present) | Parquet (~42 GB) | **$299** one-time | Direct S3 dump |
-
-👉 **[Purchase Datasets or Subscriptions at crowdintel.xyz/data →](https://crowdintel.xyz/data)**
-
----
-
-## 6. Bespoke Market Cuts & Inquiries
-
-Need a custom slice (e.g. French Presidential Election, Fed Interest Rate cuts, or specific DeFi markets)? Don't waste weeks scraping.
-
-* **Email:** `hi@crowdintel.xyz` (Custom Parquet extracts delivered within 2 hours)
-* **Telegram:** [@CrowdIntel](https://t.me/crowdintel)
-* **Official AI Agent Kit:** [`crowdintel-xyz/polymarket-agent-kit`](https://github.com/crowdintel-xyz/polymarket-agent-kit) (Model Context Protocol server for Claude & Cursor)
-
----
+- Two markets, not the whole exchange. This is a closed-event extract for end-to-end backtesting.
+- No maker/taker split: `proxy_wallet` is the wallet whose position changed.
+- No order book history in this release.
+- Prices are floats derived from the CLOB's fixed-point prices.
 
 ## License
 
-Apache 2.0. Curated by the CrowdIntel Quantitative Engineering Team.
+Apache-2.0. Attribution to CrowdIntel required for redistribution.
+
+## Full archive
+
+The complete tape (1.9B+ fills, 2.2M+ resolved markets), reconciled wallet PnL, shrinkage-adjusted
+win rates, and funding-cluster ids are available at
+[crowdintel.xyz/data](https://crowdintel.xyz/data).
+
+## Changelog
+
+- **2026-10-19** — Replaced the synthetic 10k-row sample with the real closed-event tape
+  (7.65M fills) in Parquet, added `markets.parquet`, removed the synthetic order-book subset,
+  rewrote `quickstart.py` so it never fabricates rows.
