@@ -23,7 +23,13 @@ Markets included:
 | Will Donald Trump win the 2024 US Presidential Election? | `0xdd22472e552920b8438158ea7238bfadfa4f736aa4cee91a6b86c39ead110917` | 4,963,530 | **Yes** |
 | Will Kamala Harris win the 2024 US Presidential Election? | `0xc6485bb7ea46d7bb89beb9c91e7572ecfc72a6273789496f78bc5e989e4d1638` | 2,691,636 | **No** |
 
-Coverage: 2024-01-05 02:36:24 UTC → 2024-11-06 15:20:35 UTC.
+| | |
+| :--- | :--- |
+| Fills | 7,655,166 |
+| Distinct wallets | 218,699 |
+| Volume | $2,388,138,669.46 |
+| Coverage | 2024-01-04 20:36:24 UTC → 2024-11-06 12:07:20 UTC |
+| Format | Parquet, zstd, 1M-row groups (~238 MB) |
 
 ## Schema
 
